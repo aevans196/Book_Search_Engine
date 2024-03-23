@@ -1,34 +1,39 @@
-import { useState, useEffect } from 'react';
 import {
   Container,
   Card,
   Button,
   Row,
   Col
-} from 'react-bootstrap';
+} from 'react-bootstrap'; // Importing components from React Bootstrap library
 
-import { getMe, deleteBook } from '../utils/API';
-import Auth from '../utils/auth';
-import { removeBookId } from '../utils/localStorage';
-import { QUERY_GET_ME } from '../utils/queries';
-import { REMOVE_BOOK } from '../utils/mutations';
-import { useMutation, useQuery } from '@apollo/client';
+import Auth from '../utils/auth'; // Importing authentication utility
+import { removeBookId } from '../utils/localStorage'; // Importing function to remove book ID from local storage
 
+// Importing GraphQL queries and mutations
+import { GET_ME } from "../utils/queries";
+import { DELETE_BOOK } from "../utils/mutations";
+import { useQuery, useMutation } from '@apollo/client'; // Importing hooks for executing GraphQL queries and mutations
+
+// Functional component for displaying saved books
 const SavedBooks = () => {
+  // GraphQL mutation for deleting a book
+  const [deleteBook, { error }] = useMutation(DELETE_BOOK);
+
+  // Get user data from authentication token
   const token = Auth.getToken();
   const user = Auth.getProfile(token);
-  const {loading, data} = useQuery(QUERY_GET_ME, {
-    variables: {_id: user.data._id}
-  });
-  const [removeBook, {error}] = useMutation(REMOVE_BOOK);
-  const userData = data?.me || {};
-  
 
-  // use this to determine if `useEffect()` hook needs to run again
+  // Query user data from GraphQL server
+  const { data, loading } = useQuery(GET_ME, {
+    variables: { _id: user.data._id }
+  });
+
+  // Extract user data from query result
+  const userData = data?.me || {};
+  // Use this to determine if `useEffect()` hook needs to run again
   const userDataLength = Object.keys(userData).length;
 
-
-  // create function that accepts the book's mongo _id value as param and deletes the book from the database
+  // Function to handle deletion of a book
   const handleDeleteBook = async (bookId) => {
     const token = Auth.loggedIn() ? Auth.getToken() : null;
 
@@ -37,14 +42,14 @@ const SavedBooks = () => {
     }
 
     try {
-      const data = await removeBook({
+      const { data } = await deleteBook({
         variables: {
           userId: userData._id,
-          bookId: bookId,
-        }
+          bookId: bookId
+        },
       });
 
-      // upon success, remove book's id from localStorage
+      // Upon success, remove book's ID from local storage and reload the page
       removeBookId(bookId);
       window.location.reload();
     } catch (err) {
@@ -52,34 +57,43 @@ const SavedBooks = () => {
     }
   };
 
-  // if data isn't here yet, say so
+  // If data isn't here yet, display loading message
   if (!userDataLength) {
     return <h2>LOADING...</h2>;
   }
 
+  // Rendering the saved books component
   return (
     <>
+      {/* Header section */}
       <div fluid className="text-light bg-dark p-5">
         <Container>
           <h1>Viewing saved books!</h1>
         </Container>
       </div>
+      {/* Main content section */}
       <Container>
         <h2 className='pt-5'>
+          {/* Displaying number of saved books */}
           {userData.savedBooks.length
             ? `Viewing ${userData.savedBooks.length} saved ${userData.savedBooks.length === 1 ? 'book' : 'books'}:`
             : 'You have no saved books!'}
         </h2>
+        {/* Displaying saved books as cards */}
         <Row>
           {userData.savedBooks.map((book) => {
             return (
               <Col md="4">
                 <Card key={book.bookId} border='dark'>
+                  {/* Displaying book image if available */}
                   {book.image ? <Card.Img src={book.image} alt={`The cover for ${book.title}`} variant='top' /> : null}
                   <Card.Body>
                     <Card.Title>{book.title}</Card.Title>
+                    {/* Displaying book authors */}
                     <p className='small'>Authors: {book.authors}</p>
+                    {/* Displaying book description */}
                     <Card.Text>{book.description}</Card.Text>
+                    {/* Button to delete the book */}
                     <Button className='btn-block btn-danger' onClick={() => handleDeleteBook(book.bookId)}>
                       Delete this Book!
                     </Button>
@@ -94,4 +108,4 @@ const SavedBooks = () => {
   );
 };
 
-export default SavedBooks;
+export default SavedBooks; // Exporting the SavedBooks component
